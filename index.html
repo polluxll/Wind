@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>WebGL wind simulation</title>
+    <link rel="stylesheet" href="http://openlayers.org/en/latest/css/ol.css" type="text/css">
+    <script src="http://openlayers.org/en/latest/build/ol.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+</head>
+<style>
+body,
+html {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+#map{
+    background-color: black;
+}
+
+#canvas{
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    position: absolute;
+    right: 0px;
+    top: 0px;
+    pointer-events:none;
+}
+
+.dg .function .property-name {
+    width: 100%;
+}
+</style>
+
+<body>
+    <div id="map" style="width:100%;height:100%"></div>
+    <canvas id="canvas"></canvas>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+    <script src="wind-gl.js"></script>
+    <script src="index.js"></script>
+
+</body>
+
+</html>

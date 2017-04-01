@@ -99,8 +99,6 @@ var defaultRampColors = {
 var drawVert = "\
 precision mediump float;\n\
 attribute float a_index;\n\
-uniform vec2 a_realposx;\n\
-uniform vec2 a_realposy;\n\
 uniform sampler2D u_particles;\n\
 uniform float u_particles_res;\n\
 varying vec2 v_particle_pos;\n\
@@ -109,7 +107,6 @@ void main() {\n\
     // decode current particle position from the pixel's RGBA value\n\
     v_particle_pos = vec2(color.r / 255.0 + color.b,color.g / 255.0 + color.a);\n\
     gl_PointSize = 1.0;\n\
-    //gl_Position = vec4(2.0 * (v_particle_pos.x*(a_realposx.y-a_realposx.x)+a_realposx.x) - 1.0, 1.0 - 2.0 * (v_particle_pos.y*(a_realposy.y-a_realposy.x)+a_realposy.x), 0, 1);\n\
     gl_Position = vec4(2.0 * v_particle_pos.x - 1.0, 1.0 - 2.0 * v_particle_pos.y, 0, 1);\n\
 }";
 
@@ -130,7 +127,6 @@ void main() {\n\
     // color ramp is encoded in a 16x16 texture\n\
     vec2 ramp_pos = vec2(fract(16.0 * speed_t),floor(16.0 * speed_t) / 16.0);\n\
     gl_FragColor = texture2D(u_color_ramp, ramp_pos);\n\
-    //gl_FragColor=vec4(1.0,0.0,0.0,1.0);\n\
     if(rgba.a==0.0){discard;}\n\
 }";
 
@@ -156,7 +152,6 @@ void main() {\n\
     vec4 color = texture2D(u_screen,1.0-v_tex_pos);\n\
     // a hack to guarantee opacity fade out even with a value close to 1.0\n\
     gl_FragColor = vec4(floor(255.0 * color * u_opacity) / 255.0);\n\
-    //if(u_flg==1.0&&v_tex_pos.x<0.5){gl_FragColor=vec4(1.0,0.0,0.0,1.0);}\n\
 }";
 
 var updateFrag = "\
@@ -356,8 +351,6 @@ WindGL.prototype.drawParticles = function drawParticles () {
     bindAttribute(gl, this.particleIndexBuffer, program.a_index, 1);
     bindTexture(gl, this.colorRampTexture, 2);
 
-    gl.uniform2f(program.a_realposx,x0,x1);
-    gl.uniform2f(program.a_realposy,y0,y1);
     gl.uniform1i(program.u_wind, 0);
     gl.uniform1i(program.u_particles, 1);
     gl.uniform1i(program.u_color_ramp, 2);
