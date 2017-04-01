@@ -1,6 +1,6 @@
 # Wind
 A WebGL visualization of wind power
 
-Thanks for mourner and his wonderful project [WebGL Wind](https://github.com/mapbox/webgl-wind/)
+Thanks for [mourner](http://agafonkin.com/en/) and his wonderful project [WebGL Wind](https://github.com/mapbox/webgl-wind/)
 
 ![mahua](wind/result.png)
