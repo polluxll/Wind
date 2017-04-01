@@ -189,7 +189,7 @@ function frame() {
     }
     requestAnimationFrame(frame);
     if (load) {
-        updateWind(t);
+        updateWind();
     }
 }
 frame();
@@ -224,8 +224,7 @@ function updateWind(name) {
     load = false;
     const windImage = new Image();
     windData.image = windImage;
-    var unixTime = (new Date().getTime() / 1000).toFixed(0);
-    windImage.src = 'wind/' + name + '.png?' + unixTime;
+    windImage.src = 'wind/1.png?';
     windImage.onload = function() {
         wind.setWind(windData);
         load = true;
