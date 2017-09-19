@@ -48,47 +48,12 @@ var map = new ol.Map({
     view: new ol.View({
         projection: projection,
         center: [115.00228, 25.14696],
-        zoom: 3,
+        zoom: 4,
         maxZoom: 15,
-        minZoom: 0
+        minZoom: 1
     })
 });
 
-var fullExtent = [47.1227, -16.35261, 164.6227, 60.39739];
-
-
-var imageTransform = [1, 0, 0, 1, 0, 0];
-var size = [1920, 947];
-var imgExtent = [470, 307];
-var pixelRatio = 1;
-var imagePixelRatio = 1;
-
-var imageResolution = (fullExtent[3] - fullExtent[1]) / imgExtent[1];
-var viewResolution = map.getView().getResolution();
-var scale = pixelRatio * imageResolution / (viewResolution * imagePixelRatio);
-
-
-var viewCenter = map.getView().getCenter();
-var transform = transformCompose(imageTransform,
-    pixelRatio * size[0] / 2, pixelRatio * size[1] / 2,
-    scale, scale,
-    0,
-    imagePixelRatio * (fullExtent[0] - viewCenter[0]) / imageResolution,
-    imagePixelRatio * (viewCenter[1] - fullExtent[3]) / imageResolution);
-
-
-var dx = Math.round(transform[4]);
-var dy = Math.round(transform[5]);
-var dw = Math.round(imgExtent[0] * transform[0]);
-var dh = Math.round(imgExtent[1] * transform[3]);
-var x0 = dx / size[0];
-var y0 = dy / size[1];
-var x1 = (dx + dw) / size[0];
-var y1 = (dy + dh) / size[1];
-
-
-var mapCanvas = map.getViewport().children[0];
-var mapContext = mapCanvas.getContext('2d');
 
 
 
@@ -108,7 +73,7 @@ wind.numParticles = 65536;
 
 const gui = new dat.GUI();
 gui.add(wind, 'numParticles', 1024, 589824);
-gui.add(wind, 'fadeOpacity', 0.9, 0.999).step(0.001).updateDisplay();
+gui.add(wind, 'fadeOpacity', 0.7, 0.999).step(0.001).updateDisplay();
 gui.add(wind, 'speedFactor', 0.05, 1.0);
 gui.add(wind, 'dropRate', 0, 0.1);
 gui.add(wind, 'dropRateBump', 0, 0.2);
@@ -124,66 +89,6 @@ getJSON('wind/2016112000.json', function(data) {
 
 function frame() {
 
-    var imageResolution = (fullExtent[3] - fullExtent[1]) / imgExtent[1];
-    var viewResolution = map.getView().getResolution();
-    var scale = pixelRatio * imageResolution / (viewResolution * imagePixelRatio);
-
-    var viewCenter = map.getView().getCenter();
-    var transform = transformCompose(imageTransform,
-        pixelRatio * size[0] / 2, pixelRatio * size[1] / 2,
-        scale, scale,
-        0,
-        imagePixelRatio * (fullExtent[0] - viewCenter[0]) / imageResolution,
-        imagePixelRatio * (viewCenter[1] - fullExtent[3]) / imageResolution);
-
-
-    var dx = Math.round(transform[4]);
-    var dy = Math.round(transform[5]);
-    var dw = Math.round(imgExtent[0] * transform[0]);
-    var dh = Math.round(imgExtent[1] * transform[3]);
-    x0 = dx / size[0];
-    y0 = dy / size[1];
-    x1 = (dx + dw) / size[0];
-    y1 = (dy + dh) / size[1];
-
-    mapContext.lineWidth = 2;
-    mapContext.beginPath();
-    mapContext.strokeStyle = "red";
-    var circle1 = {
-        x: Math.round(x0 * canvas.clientWidth),
-        y: Math.round(y0 * canvas.clientHeight),
-        r: 5
-    };
-    mapContext.arc(circle1.x, circle1.y, circle1.r, 0, Math.PI * 2, false);
-    mapContext.stroke();
-    mapContext.beginPath();
-    mapContext.strokeStyle = "green";
-    var circle2 = {
-        x: Math.round(x0 * canvas.clientWidth),
-        y: Math.round(y1 * canvas.clientHeight),
-        r: 5
-    };
-    mapContext.arc(circle2.x, circle2.y, circle2.r, 0, Math.PI * 2, false);
-    mapContext.stroke();
-    mapContext.beginPath();
-    mapContext.strokeStyle = "blue";
-    var circle3 = {
-        x: Math.round(x1 * canvas.clientWidth),
-        y: Math.round(y0 * canvas.clientHeight),
-        r: 5
-    };
-    mapContext.arc(circle3.x, circle3.y, circle3.r, 0, Math.PI * 2, false);
-    mapContext.stroke();
-    mapContext.beginPath();
-    mapContext.strokeStyle = "black";
-    var circle4 = {
-        x: Math.round(x1 * canvas.clientWidth),
-        y: Math.round(y1 * canvas.clientHeight),
-        r: 5
-    };
-    mapContext.arc(circle4.x, circle4.y, circle4.r, 0, Math.PI * 2, false);
-    mapContext.stroke();
-
     if (wind.windData) {
         wind.draw();
     }
@@ -194,21 +99,6 @@ function frame() {
 }
 frame();
 
-map.on('postrender',function(){
-    //wind.resize();
-});
-
-function transformCompose(transform, dx1, dy1, sx, sy, angle, dx2, dy2) {
-    var sin = Math.sin(angle);
-    var cos = Math.cos(angle);
-    transform[0] = sx * cos;
-    transform[1] = sy * sin;
-    transform[2] = -sx * sin;
-    transform[3] = sy * cos;
-    transform[4] = dx2 * sx * cos - dy2 * sx * sin + dx1;
-    transform[5] = dx2 * sy * sin + dy2 * sy * cos + dy1;
-    return transform;
-}
 
 //updateRetina();
 

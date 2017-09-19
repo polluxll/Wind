@@ -2,7 +2,7 @@
 	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
 	typeof define === 'function' && define.amd ? define(factory) :
 	(global.WindGL = factory());
-}(this, (function () { 'use strict';
+}(this, (function () { 
 
 function createShader(gl, type, source) {
     var shader = gl.createShader(type);
@@ -26,6 +26,9 @@ function createProgram(gl, vertexSource, fragmentSource) {
     gl.attachShader(program, fragmentShader);
 
     gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        throw new Error(gl.getProgramInfoLog(program));
+    }
 
     var wrapper = {program: program};
 
@@ -84,18 +87,6 @@ function bindFramebuffer(gl, framebuffer, texture) {
     }
 }
 
-var defaultRampColors = {
-    0.0: 'RGBA(55,60,63,1)',
-    0.1: 'RGBA(5,102,131,1)',
-    0.2: 'RGBA(42,150,79,1)',
-    0.3: 'RGBA(179,168,43,1)',
-    0.4: 'RGBA(179,111,42,1)',
-    0.5: 'RGBA(177,50,48,1)',
-    0.6: 'RGBA(112,45,95,1)',
-    1.0: 'RGBA(110,40,100,1)'
-};
-
-
 var drawVert = "\
 precision mediump float;\n\
 attribute float a_index;\n\
@@ -104,10 +95,9 @@ uniform float u_particles_res;\n\
 varying vec2 v_particle_pos;\n\
 void main() {\n\
     vec4 color = texture2D(u_particles,vec2(fract(a_index/u_particles_res),floor(a_index/u_particles_res)/u_particles_res));\n\
-    // decode current particle position from the pixel's RGBA value\n\
     v_particle_pos = vec2(color.r / 255.0 + color.b,color.g / 255.0 + color.a);\n\
-    gl_PointSize = 1.0;\n\
-    gl_Position = vec4(2.0 * v_particle_pos.x - 1.0, 1.0 - 2.0 * v_particle_pos.y, 0, 1);\n\
+    gl_PointSize = 1.85;\n\
+    gl_Position = vec4((2.0 * v_particle_pos-1.0)*vec2(1.0, -1.0), 0, 1);\n\
 }";
 
 var drawFrag = "\
@@ -118,39 +108,41 @@ uniform vec2 u_wind_max;\n\
 uniform sampler2D u_color_ramp;\n\
 varying vec2 v_particle_pos;\n\
 void main() {\n\
-    //vec4 rgba=texture2D(u_wind, v_particle_pos).rgba;\n\
-    vec4 rgba=texture2D(u_wind,vec2(1.0-v_particle_pos.x,v_particle_pos.y)).rgba;\n\
-    vec2 velocity = mix(u_wind_min, u_wind_max, vec2(rgba.r,rgba.g));\n\
-    //min function return min*(1−r)+max*r  min+r*(max-min)  \n\
-    float speed_t =length(velocity) / length(u_wind_max);\n\
-    //length function return vector length \n\
+    vec4 rgba=texture2D(u_wind, v_particle_pos).rgba;\n\
+    if(rgba.a==0.0){\n\
+        discard;\n\
+    }\n\
+    vec2 velocity = mix(u_wind_min, u_wind_max,rgba.rg);\n\
+    float speed_t = length(velocity) / length(u_wind_max);\n\
+    if(speed_t<0.0){\n\
+        discard;\n\
+    }\n\
     // color ramp is encoded in a 16x16 texture\n\
     vec2 ramp_pos = vec2(fract(16.0 * speed_t),floor(16.0 * speed_t) / 16.0);\n\
     gl_FragColor = texture2D(u_color_ramp, ramp_pos);\n\
-    if(rgba.a==0.0){discard;}\n\
 }";
+
+
 
 
 
 var quadVert = "\
 precision mediump float;\n\
 attribute vec2 a_pos;\n\
-attribute vec2 a_tex_pos;\n\
 varying vec2 v_tex_pos;\n\
 void main() {\n\
-    v_tex_pos = a_tex_pos;\n\
-    gl_Position = vec4((2.0 * a_pos-1.0)*vec2(1.0, -1.0), 0, 1);\n\
+    v_tex_pos = a_pos;\n\
+    gl_Position = vec4(1.0 - 2.0 * a_pos, 0, 1);\n\
+    //gl_Position = vec4((2.0 * a_pos-1.0)*vec2(1.0, -1.0), 0, 1);\n\
 }";
 
 var screenFrag = "\
 precision mediump float;\n\
 uniform sampler2D u_screen;\n\
 uniform float u_opacity;\n\
-uniform float u_flg;\n\
 varying vec2 v_tex_pos;\n\
 void main() {\n\
-    vec4 color = texture2D(u_screen,1.0-v_tex_pos);\n\
-    // a hack to guarantee opacity fade out even with a value close to 1.0\n\
+    vec4 color = texture2D(u_screen, 1.0 - v_tex_pos);\n\
     gl_FragColor = vec4(floor(255.0 * color * u_opacity) / 255.0);\n\
 }";
 
@@ -166,15 +158,13 @@ uniform float u_speed_factor;\n\
 uniform float u_drop_rate;\n\
 uniform float u_drop_rate_bump;\n\
 varying vec2 v_tex_pos;\n\
-// pseudo-random generator\n\
+varying vec2 v_imgtTexCoord;\n\
 const vec3 rand_constants = vec3(12.9898, 78.233, 4375.85453);\n\
 float rand(const vec2 co) {\n\
     float t = dot(rand_constants.xy, co);\n\
     return fract(sin(t) * (rand_constants.z + t));\n\
 }\n\
-// wind speed lookup; use manual bilinear filtering based on 4 adjacent pixels for smooth interpolation\n\
 vec2 lookup_wind(const vec2 uv) {\n\
-    // return texture2D(u_wind, uv).rg; // lower-res hardware filtering\n\
     vec2 px = 1.0 / u_wind_res;\n\
     vec2 vc = (floor(uv * u_wind_res)) * px;\n\
     vec2 f = fract(uv * u_wind_res);\n\
@@ -186,27 +176,35 @@ vec2 lookup_wind(const vec2 uv) {\n\
 }\n\
 void main() {\n\
     vec4 color = texture2D(u_particles, v_tex_pos);\n\
-    vec2 pos = vec2(color.r / 255.0 + color.b,color.g / 255.0 + color.a); // decode particle position from pixel RGBA\n\
-    vec2 wind_result=lookup_wind(pos);\n\
-    vec2 velocity = mix(u_wind_min, u_wind_max, wind_result);\n\
-    float speed_t = length(velocity) / length(u_wind_max);\n\   // take EPSG:4236 distortion into account for calculating where the particle moved\n\
+    vec2 pos = vec2(color.r / 255.0 + color.b,color.g / 255.0 + color.a);\n\
+    vec2 velocity = mix(u_wind_min, u_wind_max, lookup_wind(pos));\n\
+    float speed_t = length(velocity) / length(u_wind_max);\n\
     float distortion = cos(radians(pos.y * 180.0 - 90.0));\n\
-    vec2 offset = vec2(velocity.x / distortion, -velocity.y) * 0.0001 * u_speed_factor;\n\    // update particle position, wrapping around the date line\n\
-    pos = fract(1.0 + pos + offset);\n\    // a random seed to use for the particle drop\n\
-    vec2 seed = (pos + v_tex_pos) * u_rand_seed;\n\n    // drop rate is a chance a particle will restart at random position, to avoid degeneration\n\
+    vec2 offset = vec2(velocity.x / distortion, -velocity.y) * 0.0001 * u_speed_factor;\n\
+    pos = fract(1.0 + pos + offset);\n\
+    vec2 seed = (pos + v_tex_pos) * u_rand_seed;\n\
     float drop_rate = u_drop_rate + speed_t * u_drop_rate_bump;\n\
     float drop = step(1.0 - drop_rate, rand(seed));\n\
     vec2 random_pos = vec2(rand(seed + 1.3),rand(seed + 2.1));\n\
-    pos = mix(pos, random_pos, drop);\n\n    // encode the new particle position back into RGBA\n\
-    vec4 result=vec4(fract(pos * 255.0),floor(pos * 255.0) / 255.0);\n\
-    gl_FragColor =result;\n\
+    pos = mix(pos, random_pos, drop);\n\
+    gl_FragColor = vec4(fract(pos * 255.0),floor(pos * 255.0) / 255.0);\n\
 }";
 
+var defaultRampColors = {
+    0.0: 'RGBA(55,60,63,1)',
+    0.1: 'RGBA(5,102,131,1)',
+    0.2: 'RGBA(42,150,79,1)',
+    0.3: 'RGBA(179,168,43,1)',
+    0.4: 'RGBA(179,111,42,1)',
+    0.5: 'RGBA(177,50,48,1)',
+    0.6: 'RGBA(112,45,95,1)',
+    1.0: 'RGBA(110,40,100,1)'
+};
 
 var WindGL = function WindGL(gl) {
     this.gl = gl;
 
-    this.fadeOpacity = 0.95; // how fast the particle trails fade on each frame
+    this.fadeOpacity = 0.76; // how fast the particle trails fade on each frame
     this.speedFactor = 0.25; // how fast the particles move
     this.dropRate = 0.003; // how often the particles move to a random place
     this.dropRateBump = 0.01; // drop rate increase relative to individual particle speed
@@ -216,8 +214,6 @@ var WindGL = function WindGL(gl) {
     this.updateProgram = createProgram(gl, quadVert, updateFrag);
 
     this.quadBuffer = createBuffer(gl, new Float32Array([0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1]));
-    //this.quadBuffer=createBuffer(gl, new Float32Array([x0, y0, x1, y0, x0, y1, x0, y1, x1, y0, x1, y1]));
-    this.quadTxtBuffer=createBuffer(gl, new Float32Array([0, 0, 1, 0, 0, 1, 0, 1, 1, 0,1, 1]));
     this.framebuffer = gl.createFramebuffer();
 
     this.setColorRamp(defaultRampColors);
@@ -266,42 +262,63 @@ WindGL.prototype.setWind = function setWind (windData) {
     this.windData = windData;
     this.windTexture = createTexture(this.gl, this.gl.LINEAR, windData.image);
 };
-var flg=0;
+
 WindGL.prototype.draw = function draw () {
     var gl = this.gl;
     gl.disable(gl.DEPTH_TEST);
     gl.disable(gl.STENCIL_TEST);
+    this.clipImage();
 
-    bindTexture(gl, this.windTexture, 0);
+    bindTexture(gl, this.clipTexture, 0);
     bindTexture(gl, this.particleStateTexture0, 1);
-
-    //this.drawTexture(this.windTexture,this.fadeOpacity);
+    
 
     this.drawScreen();
-    
     this.updateParticles();
+};
+WindGL.prototype.clipImage=function clipImage(){
+    var clipCanvas=document.createElement('canvas');
+    clipCanvas.width=canvas.width;
+    clipCanvas.height=canvas.height;
+    var clipContext=clipCanvas.getContext('2d');
+
+    var size=[canvas.width,canvas.height];
+    var imageExtent=[47.1227, -16.35261, 164.6227, 60.39739];
+    var extent = map.getView().calculateExtent(size);
+    var resolution=map.getView().getResolution();
+    var pixelRatio=1;
+
+    
+    var londiff = imageExtent[0] - extent[0];
+    var latdiff = extent[3] - imageExtent[3];
+    var startx = (londiff / (extent[2] - extent[0])) * size[0];
+    var starty = (latdiff / (extent[3] - extent[1])) * size[1];
+    var widthScale = ((imageExtent[2] - imageExtent[0]) / resolution)*pixelRatio;
+    var heightScale = ((imageExtent[3] - imageExtent[1]) / resolution)*pixelRatio;
+
+
+    clipContext.drawImage(this.windData.image,0, 0, this.windData.image.width, this.windData.image.height, 
+        startx, starty, widthScale, heightScale);
+    //document.body.appendChild(clipCanvas);
+
+    this.clipTexture = createTexture(this.gl, this.gl.LINEAR, clipCanvas);
 };
 
 WindGL.prototype.drawScreen = function drawScreen () {
-
-    if(flg>0){
-        //return;
-    }
-    //gl.clear(gl.COLOR_BUFFER_BIT);
     var gl = this.gl;
     // draw the screen into a temporary framebuffer to retain it as the background on the next frame
     bindFramebuffer(gl, this.framebuffer, this.screenTexture);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-    this.drawScreenTexture(this.backgroundTexture, this.fadeOpacity);
-    //gl.clear(gl.COLOR_BUFFER_BIT);
+    this.drawTexture(this.backgroundTexture, this.fadeOpacity);
+
     this.drawParticles();
+
     bindFramebuffer(gl, null);
+
     // enable blending to support drawing on top of an existing background (e.g. a map)
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    //gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-
     this.drawTexture(this.screenTexture, 1.0);
     gl.disable(gl.BLEND);
 
@@ -309,7 +326,6 @@ WindGL.prototype.drawScreen = function drawScreen () {
     var temp = this.backgroundTexture;
     this.backgroundTexture = this.screenTexture;
     this.screenTexture = temp;
-    flg++;
 };
 
 WindGL.prototype.drawTexture = function drawTexture (texture, opacity) {
@@ -317,28 +333,10 @@ WindGL.prototype.drawTexture = function drawTexture (texture, opacity) {
     var program = this.screenProgram;
     gl.useProgram(program.program);
 
-    this.quadBuffer=createBuffer(gl, new Float32Array([x0, y0, x1, y0, x0, y1, x0, y1, x1, y0, x1, y1]));
     bindAttribute(gl, this.quadBuffer, program.a_pos, 2);
-    bindAttribute(gl,this.quadTxtBuffer,program.a_tex_pos,2);
     bindTexture(gl, texture, 2);
     gl.uniform1i(program.u_screen, 2);
     gl.uniform1f(program.u_opacity, opacity);
-    gl.uniform1f(program.u_flg, flg);
-
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-};
-WindGL.prototype.drawScreenTexture = function drawScreenTexture (texture, opacity) {
-    var gl = this.gl;
-    var program = this.screenProgram;
-    gl.useProgram(program.program);
-
-    this.quadBuffer = createBuffer(gl, new Float32Array([0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1]));
-    bindAttribute(gl, this.quadBuffer, program.a_pos, 2);
-    bindAttribute(gl,this.quadTxtBuffer,program.a_tex_pos,2);
-    bindTexture(gl, texture, 2);
-    gl.uniform1i(program.u_screen, 2);
-    gl.uniform1f(program.u_opacity, opacity);
-    gl.uniform1f(program.u_flg, flg);
 
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 };
@@ -370,9 +368,7 @@ WindGL.prototype.updateParticles = function updateParticles () {
     var program = this.updateProgram;
     gl.useProgram(program.program);
 
-    this.quadBuffer = createBuffer(gl, new Float32Array([0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1]));
     bindAttribute(gl, this.quadBuffer, program.a_pos, 2);
-    bindAttribute(gl,this.quadTxtBuffer,program.a_tex_pos,2);
 
     gl.uniform1i(program.u_wind, 0);
     gl.uniform1i(program.u_particles, 1);
