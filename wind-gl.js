@@ -260,16 +260,18 @@ prototypeAccessors.numParticles.get = function () {
 
 WindGL.prototype.setWind = function setWind (windData) {
     this.windData = windData;
-    this.windTexture = createTexture(this.gl, this.gl.LINEAR, windData.image);
+    this.resetWindTexture();
+};
+WindGL.prototype.resetWindTexture=function resetWindTexture(){
+    this.clipImage();  
 };
 
 WindGL.prototype.draw = function draw () {
     var gl = this.gl;
     gl.disable(gl.DEPTH_TEST);
     gl.disable(gl.STENCIL_TEST);
-    this.clipImage();
 
-    bindTexture(gl, this.clipTexture, 0);
+    bindTexture(gl, this.windTexture, 0);
     bindTexture(gl, this.particleStateTexture0, 1);
     
 
@@ -301,7 +303,7 @@ WindGL.prototype.clipImage=function clipImage(){
         startx, starty, widthScale, heightScale);
     //document.body.appendChild(clipCanvas);
 
-    this.clipTexture = createTexture(this.gl, this.gl.LINEAR, clipCanvas);
+    this.windTexture = createTexture(this.gl, this.gl.LINEAR, clipCanvas);
 };
 
 WindGL.prototype.drawScreen = function drawScreen () {

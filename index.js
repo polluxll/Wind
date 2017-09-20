@@ -56,9 +56,6 @@ var map = new ol.Map({
 
 
 
-
-
-//var canvas = map.getViewport().children[0]; // eslint-disable-line
 var canvas = document.getElementById('canvas');
 
 const pxRatio = Math.max(Math.floor(window.devicePixelRatio) || 1, 2);
@@ -85,6 +82,12 @@ getJSON('wind/2016112000.json', function(data) {
     load = true;
 });
 
+
+map.on('postrender',function(event){
+    if(wind.windData){
+        wind.resetWindTexture();
+    }
+});
 
 
 function frame() {
