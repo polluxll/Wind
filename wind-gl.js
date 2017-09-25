@@ -180,6 +180,7 @@ void main() {\n\
     vec2 velocity = mix(u_wind_min, u_wind_max, lookup_wind(pos));\n\
     float speed_t = length(velocity) / length(u_wind_max);\n\
     float distortion = cos(radians(pos.y * 180.0 - 90.0));\n\
+    distortion=1.0;\n\
     vec2 offset = vec2(velocity.x / distortion, -velocity.y) * 0.0001 * u_speed_factor;\n\
     pos = fract(1.0 + pos + offset);\n\
     vec2 seed = (pos + v_tex_pos) * u_rand_seed;\n\
