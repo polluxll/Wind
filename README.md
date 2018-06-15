@@ -5,5 +5,3 @@ Thanks for [mourner](http://agafonkin.com/en/) and his wonderful project [WebGL 
 
 
 ![mahua](wind/result.png)
-
-![mahua](wind/wind.gif)
